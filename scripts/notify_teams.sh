@@ -52,7 +52,10 @@ notify_teams() {
   local _msg="${CARD_MSG:-$message}"
   local _link="${CARD_LINK:-${ENV_URL:+[Open environment]($ENV_URL)}}"
   local _facts
-  _facts="${CARD_FACTS:-$(cat <<FACTS
+  if [ -n "${CARD_FACTS:-}" ]; then
+    _facts="$CARD_FACTS"
+  else
+    _facts=$(cat <<FACTS
 [
   { "title": "Container:",    "value": "${WEBSITE_SITE_NAME:-$_project}" },
   { "title": "Environment:",  "value": "$_env" },
@@ -60,7 +63,8 @@ notify_teams() {
   { "title": "Timestamp:",    "value": "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" }
 ]
 FACTS
-  )}"
+)
+  fi
 
   WEBHOOK_URL="$TEAMS_WEBHOOK_URL" \
   CARD_TITLE="$_title" \

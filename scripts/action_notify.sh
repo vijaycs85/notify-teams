@@ -42,13 +42,18 @@ esac
 # ── Environment display name ───────────────────────────────────────────────
 # Set ENV_DISPLAY to bypass this mapping entirely
 if [ -z "${ENV_DISPLAY:-}" ]; then
-  case "${ENV_NAME_RAW,,}" in
+  env_lower=$(echo "$ENV_NAME_RAW" | tr '[:upper:]' '[:lower:]')
+  case "$env_lower" in
     dev|development)   ENV_DISPLAY="Development" ;;
     stg|stage|staging) ENV_DISPLAY="Staging" ;;
     prod|production)   ENV_DISPLAY="Production" ;;
     epic)              ENV_DISPLAY="Epic" ;;
     refactor)          ENV_DISPLAY="Refactor" ;;
-    *)                 ENV_DISPLAY="${ENV_NAME_RAW^}" ;;
+    *)
+      first=$(echo "${ENV_NAME_RAW:0:1}" | tr '[:lower:]' '[:upper:]')
+      rest="${ENV_NAME_RAW:1}"
+      ENV_DISPLAY="${first}${rest}"
+      ;;
   esac
 fi
 
@@ -57,7 +62,8 @@ CARD_COLOR="${CARD_COLOR:-$_color}"
 CARD_TITLE="${CARD_TITLE:-$PROJECT | $ENV_DISPLAY | $_status_text}"
 CARD_MSG="${CARD_MSG:-${MSG:-}}"
 CARD_LINK="${CARD_LINK:-${RUN_URL:+[View GitHub Workflow Run]($RUN_URL)}}"
-CARD_FACTS="${CARD_FACTS:-$(cat <<FACTS
+if [ -z "${CARD_FACTS:-}" ]; then
+  CARD_FACTS=$(cat <<FACTS
 [
   { "title": "Project:",      "value": "$PROJECT" },
   { "title": "Environment:",  "value": "$ENV_DISPLAY" },
@@ -65,6 +71,7 @@ CARD_FACTS="${CARD_FACTS:-$(cat <<FACTS
   { "title": "Triggered by:", "value": "${ACTOR:-}" }
 ]
 FACTS
-)}"
+)
+fi
 
 send_card
