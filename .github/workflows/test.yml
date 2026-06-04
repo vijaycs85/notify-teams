@@ -1,0 +1,60 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Static analysis ─────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+
+      - name: actionlint
+        uses: raven-actions/actionlint@v2
+
+  # ── Unit tests ──────────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (bats-core, jq, kcov)
+        run: |
+          sudo apt-get install -y jq kcov
+          npm install -g bats
+
+      - name: Run tests with coverage
+        run: |
+          kcov \
+            --include-path=scripts/ \
+            --exclude-pattern=tests/ \
+            coverage/ \
+            bats tests/
+
+      - name: Check coverage is 100%
+        run: |
+          COVERAGE=$(jq -r '.percent_covered' coverage/bats/coverage.json)
+          echo "Coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 100" | bc -l) )); then
+            echo "❌ Coverage is below 100% ($COVERAGE%)"
+            exit 1
+          fi
+          echo "✅ 100% coverage achieved"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/

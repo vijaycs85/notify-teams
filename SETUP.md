@@ -1,31 +1,18 @@
-# Setting up Microsoft Teams Incoming Webhook
+# Setting Up a Microsoft Teams Incoming Webhook
 
-Follow these steps to generate a Webhook URL for your Teams channel.
+Follow the official Microsoft documentation to create your Webhook URL:
 
-## Modern Way (Workflows App)
-Microsoft is moving towards the "Workflows" app in Teams for incoming webhooks.
+**[Create incoming webhooks with Workflows for Microsoft Teams →](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook)**
 
-1.  Open **Microsoft Teams**.
-2.  Go to the **Workflows** app (on the left sidebar).
-3.  Search for **"Post to a channel when a webhook request is received"**.
-4.  Follow the wizard:
-    *   **Name**: Give it a descriptive name (e.g., "GitHub Deployment Notifications").
-    *   **Team**: Select the team where the channel is located.
-    *   **Channel**: Select the specific channel to post to.
-5.  Click **Next** (or "Add workflow").
-6.  Once created, it will provide a **Webhook URL**. Copy this URL.
+> **Note:** Microsoft has retired the legacy Office 365 Incoming Webhook Connector. Use the **Workflows** app (Power Automate) method shown in the documentation above.
 
-## Traditional way (Incoming Webhook Connector)
-*Note: This might be deprecated in some tenants.*
+## Store the Webhook URL as a Secret
 
-1.  Navigate to the channel where you want to add the webhook.
-2.  Click the **three dots (...)** next to the channel name and select **Connectors**.
-3.  Search for **Incoming Webhook** and click **Add**.
-4.  Enter a name and upload an icon (e.g., the GitHub logo).
-5.  Click **Create**.
-6.  Copy the **URL** that is displayed.
+Once you have your Webhook URL, add it as a secret in your GitHub repository:
 
-## Secure the Webhook URL
-Store the Webhook URL as a **GitHub Secret** in your repository:
-*   Name: `MS_TEAMS_WEBHOOK_URL`
-*   Value: *[Paste the URL from Teams]*
+1. Go to your repository → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Name: `MS_TEAMS_WEBHOOK_URL`
+4. Value: *(paste the Webhook URL from Teams)*
+
+For Azure container apps, set `TEAMS_WEBHOOK_URL` as an environment variable in your container configuration instead.

@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    name: Create ${{ inputs.bump }} release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      # ── Compute new version ───────────────────────────────────────────────
+      - name: Compute new version
+        id: version
+        run: |
+          LATEST=$(git tag --list 'v*.*.*' --sort=-version:refname | head -1)
+          LATEST=${LATEST:-v0.0.0}
+
+          MAJOR=$(echo "${LATEST#v}" | cut -d. -f1)
+          MINOR=$(echo "${LATEST#v}" | cut -d. -f2)
+          PATCH=$(echo "${LATEST#v}" | cut -d. -f3)
+
+          case "${{ inputs.bump }}" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+
+          TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "tag=$TAG"                     >> "$GITHUB_OUTPUT"
+          echo "number=${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
+          echo "major=v${MAJOR}"              >> "$GITHUB_OUTPUT"
+
+          echo "Previous: $LATEST → New: $TAG"
+
+      # ── Update composer.json version ──────────────────────────────────────
+      - name: Update composer.json version
+        run: |
+          jq --arg v "${{ steps.version.outputs.number }}" \
+            '.version = $v' composer.json > composer.tmp.json
+          mv composer.tmp.json composer.json
+
+      # ── Commit and push ───────────────────────────────────────────────────
+      - name: Commit version bump
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add composer.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.tag }}"
+          git push
+
+      # ── Create GitHub release (and tag) ───────────────────────────────────
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            --latest
+
+      # ── Keep major version tag up to date (e.g. v1 → latest v1.x.x) ─────
+      # This lets action users pin to @v1 and get patch/minor updates automatically.
+      - name: Update major version tag
+        run: |
+          git tag -f "${{ steps.version.outputs.major }}"
+          git push origin "${{ steps.version.outputs.major }}" --force

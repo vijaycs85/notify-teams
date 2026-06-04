@@ -1,5 +1,8 @@
 name: 'action-notify-teams'
 description: 'Send deployment notifications to Microsoft Teams via Incoming Webhook. Works with any project using GitHub Actions.'
+branding:
+  icon: 'bell'
+  color: 'blue'
 inputs:
   teams_webhook_url:
     description: 'The MS Teams Incoming Webhook URL'
@@ -38,109 +41,4 @@ runs:
         RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         BRANCH: ${{ github.ref_name }}
         ACTOR: ${{ github.actor }}
-      run: |
-        # Map status to color and text
-        if [ "$STATUS" == "start" ]; then
-          COLOR="accent"
-          STATUS_TEXT="🚀 Deployment Started"
-        elif [ "$STATUS" == "success" ]; then
-          COLOR="good"
-          STATUS_TEXT="✅ Deployment Successful"
-        elif [ "$STATUS" == "failure" ]; then
-          COLOR="attention"
-          STATUS_TEXT="❌ Deployment Failed"
-        else
-          COLOR="default"
-          STATUS_TEXT="🔔 Deployment Notification"
-        fi
-
-        # Map environment labels to friendly names
-        case "${ENV_NAME_RAW,,}" in
-          dev|development)
-            ENV_DISPLAY="Development"
-            ;;
-          stg|stage|staging)
-            ENV_DISPLAY="Staging"
-            ;;
-          prod|production)
-            ENV_DISPLAY="Production"
-            ;;
-          epic)
-            ENV_DISPLAY="Epic"
-            ;;
-          refactor)
-            ENV_DISPLAY="Refactor"
-            ;;
-          *)
-            ENV_DISPLAY="${ENV_NAME_RAW^}" # Capitalize first letter
-            ;;
-        esac
-
-        # Construct Dynamic Title
-        TITLE="$PROJECT | $ENV_DISPLAY | $STATUS_TEXT"
-
-        # Prepare actions array (Only include "Open environment" if URL is provided)
-        ACTIONS='[]'
-        if [ -n "$ENV_URL" ]; then
-          ACTIONS='[
-            {
-              "type": "Action.OpenUrl",
-              "title": "Open environment",
-              "url": "'$ENV_URL'"
-            }
-          ]'
-        fi
-
-        # Construct the Adaptive Card JSON
-        PAYLOAD=$(cat <<EOF
-        {
-          "type": "message",
-          "attachments": [
-            {
-              "contentType": "application/vnd.microsoft.card.adaptive",
-              "content": {
-                "type": "AdaptiveCard",
-                "body": [
-                  {
-                    "type": "TextBlock",
-                    "size": "Large",
-                    "weight": "Bolder",
-                    "text": "$TITLE",
-                    "wrap": true,
-                    "color": "$COLOR"
-                  },
-                  {
-                    "type": "FactSet",
-                    "facts": [
-                      { "title": "Project:", "value": "$PROJECT" },
-                      { "title": "Environment:", "value": "$ENV_DISPLAY" },
-                      { "title": "Branch:", "value": "$BRANCH" },
-                      { "title": "Triggered by:", "value": "$ACTOR" }
-                    ]
-                  },
-                  {
-                    "type": "TextBlock",
-                    "text": "$MSG",
-                    "wrap": true,
-                    "isSubtle": true
-                  },
-                  {
-                    "type": "TextBlock",
-                    "text": "[View GitHub Workflow Run]($RUN_URL)",
-                    "size": "Small",
-                    "isSubtle": true,
-                    "horizontalAlignment": "Right"
-                  }
-                ],
-                "actions": $ACTIONS,
-                "\$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                "version": "1.4"
-              }
-            }
-          ]
-        }
-        EOF
-        )
-
-        # Send to Teams
-        curl -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK_URL"
+      run: bash "$GITHUB_ACTION_PATH/scripts/action_notify.sh"
