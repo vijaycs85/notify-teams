@@ -1,0 +1,45 @@
+name: Test Teams Notification
+on:
+  workflow_dispatch:
+    inputs:
+      status:
+        description: 'Test Status'
+        required: true
+        default: 'success'
+        type: choice
+        options:
+          - 'start'
+          - 'success'
+          - 'failure'
+      environment:
+        description: 'Test Environment (e.g. dev, stg, prod)'
+        required: true
+        default: 'dev'
+        type: string
+      project_name:
+        description: 'Friendly Project Name'
+        required: true
+        default: 'My App'
+        type: string
+      environment_url:
+        description: 'Environment URL'
+        required: false
+        default: 'https://my-app-dev.example.com'
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Send Test Notification
+        uses: ./
+        with:
+          teams_webhook_url: ${{ secrets.MS_TEAMS_WEBHOOK_URL }}
+          status: ${{ inputs.status }}
+          environment: ${{ inputs.environment }}
+          project_name: ${{ inputs.project_name }}
+          environment_url: ${{ inputs.environment_url }}
+          message: 'This is a test notification from action-notify-teams.'
