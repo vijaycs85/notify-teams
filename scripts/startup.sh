@@ -16,6 +16,7 @@ set -euo pipefail
 # =============================================================================
 
 # Load Teams notification helper
+# shellcheck source=./notify_teams.sh
 source "$(dirname "$0")/notify_teams.sh"
 
 # Trap any error: send a failure card then exit

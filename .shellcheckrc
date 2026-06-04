@@ -1,0 +1,3 @@
+# .shellcheckrc — project-wide shellcheck configuration
+# Follow sourced files so SC1091 "not following" notes are resolved.
+external-sources=true
