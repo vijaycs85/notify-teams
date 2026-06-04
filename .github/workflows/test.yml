@@ -29,28 +29,73 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies (bats-core, jq, kcov)
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Install bats-core
         run: |
-          sudo apt-get install -y jq kcov
-          npm install -g bats
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          sudo /tmp/bats-core/install.sh /usr/local
+
+      # kcov is not in Ubuntu 24.04 apt repos — build from source and cache it
+      - name: Cache kcov
+        uses: actions/cache@v4
+        id: kcov-cache
+        with:
+          path: /tmp/kcov-install
+          key: kcov-v42-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install kcov build dependencies
+        if: steps.kcov-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get install -y cmake python3-dev libssl-dev libdw-dev binutils-dev
+
+      - name: Build kcov
+        if: steps.kcov-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch v42 https://github.com/SimonKagstrom/kcov.git /tmp/kcov-src
+          cmake -B /tmp/kcov-src/build /tmp/kcov-src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/tmp/kcov-install
+          cmake --build /tmp/kcov-src/build -j$(nproc)
+          cmake --install /tmp/kcov-src/build
+
+      - name: Add kcov to PATH
+        run: echo "/tmp/kcov-install/bin" >> "$GITHUB_PATH"
 
       - name: Run tests with coverage
         run: |
           kcov \
             --include-path=scripts/ \
-            --exclude-pattern=tests/ \
+            --exclude-path=tests/ \
             coverage/ \
             bats tests/
 
-      - name: Check coverage is 100%
+      - name: Verify 100% coverage
         run: |
-          COVERAGE=$(jq -r '.percent_covered' coverage/bats/coverage.json)
-          echo "Coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 100" | bc -l) )); then
-            echo "❌ Coverage is below 100% ($COVERAGE%)"
-            exit 1
-          fi
-          echo "✅ 100% coverage achieved"
+          python3 - <<'EOF'
+          import json, sys, glob
+
+          # kcov writes one coverage.json per instrumented file — sum them up
+          files = glob.glob("coverage/**/coverage.json", recursive=True)
+          if not files:
+              print("No coverage.json found — kcov may not have instrumented any files")
+              sys.exit(1)
+
+          total = covered = 0
+          for path in files:
+              with open(path) as f:
+                  data = json.load(f)
+              total   += int(data.get("total_lines",   0))
+              covered += int(data.get("covered_lines", 0))
+
+          pct = (covered / total * 100) if total > 0 else 0
+          print(f"Coverage: {covered}/{total} lines ({pct:.1f}%)")
+
+          if pct < 100:
+              print("❌ Coverage is below 100%")
+              sys.exit(1)
+          print("✅ 100% coverage")
+          EOF
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
