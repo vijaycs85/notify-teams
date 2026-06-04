@@ -4,7 +4,13 @@
   "type": "library",
   "version": "1.0.0",
   "license": "MIT",
-  "keywords": ["teams", "notification", "azure", "shell", "github-actions"],
+  "keywords": [
+    "teams",
+    "notification",
+    "azure",
+    "shell",
+    "github-actions"
+  ],
   "extra": {
     "scripts-dir": "scripts"
   }
